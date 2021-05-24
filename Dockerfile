@@ -13,7 +13,7 @@ RUN set eux && \
     tar -xzvf /tmp/softether-vpnserver.tar.gz -C /usr/local/ && \
     rm /tmp/softether-vpnserver.tar.gz && \
     make i_read_and_agree_the_license_agreement && \
-    apt uninstall make gcc
+    apt remove make gcc
 
 EXPOSE 500/udp 4500/udp
 
