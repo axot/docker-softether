@@ -1,21 +1,45 @@
-# SoftEther VPN server
-
-FROM debian:buster-slim
+FROM debian:buster-slim as build
 MAINTAINER axot
 
-ENV VERSION v4.34-9745-rtm-2020.04.05
-WORKDIR /usr/local/vpnserver
+ENV VERSION=5.02.0
 
-RUN set eux && \
-    apt update && \
-    apt install -y make gcc wget && \
-    wget http://www.softether-download.com/files/softether/${VERSION}-tree/Linux/SoftEther_VPN_Server/64bit_-_Intel_x64_or_AMD64/softether-vpnserver-${VERSION}-linux-x64-64bit.tar.gz -O /tmp/softether-vpnserver.tar.gz && \
-    tar -xzvf /tmp/softether-vpnserver.tar.gz -C /usr/local/ && \
-    rm /tmp/softether-vpnserver.tar.gz && \
-    make i_read_and_agree_the_license_agreement && \
-    apt remove -y make gcc
+RUN set -eux \
+  && apt update \
+  && apt install -y  \
+    g++              \
+    pkg-config       \
+    libncurses-dev   \
+    libreadline-dev  \
+    libssl-dev       \
+    libsodium-dev    \
+    zlib1g-dev       \
+    git              \
+    cmake            \
+  && git clone -b ${VERSION} https://github.com/SoftEtherVPN/SoftEtherVPN.git \
+  && cd SoftEtherVPN \
+  && git submodule init \
+  && git submodule update \
+  && ./configure \
+  && make -j $(nproc || sysctl -n hw.ncpu || echo 4) -C build \
+  && make -C build install
+
+from debian:buster-slim
+
+COPY --from=build /usr/local/bin /usr/local/bin
+COPY --from=build /usr/local/lib /usr/local/lib
+COPY --from=build /usr/local/libexec /usr/local/libexec
+
+RUN set -eux \
+  && apt update \
+  && apt install -y  \
+    libncurses-dev   \
+    libreadline-dev  \
+    libssl-dev       \
+    libsodium-dev    \
+    zlib1g-dev
 
 EXPOSE 500/udp 4500/udp
 
-ADD files/start.sh /start.sh
-ENTRYPOINT ["/start.sh"]
+ENTRYPOINT ["/usr/local/bin/vpnserver"]
+
+CMD ["execsvc"]
